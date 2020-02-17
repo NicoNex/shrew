@@ -1,0 +1,3 @@
+archive_path = ".shrew/"
+connection_port = 8081
+allow_overwrite = false
