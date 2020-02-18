@@ -87,7 +87,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var name string
 	var response string
 	var items []Item
-	var ichan = make(chan Item, 100)
+	var ichan = make(chan Item, 512)
 
 	if r.Method != "POST" {
 		err = errors.New("Invalid request")
@@ -101,7 +101,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	name, err = getQuery("name", r.URL.RawQuery)
 	if check(err) {
 		response = GetErrResponse(err)
-		goto write_response		
+		goto write_response
 	}
 
 	if r.MultipartForm == nil {

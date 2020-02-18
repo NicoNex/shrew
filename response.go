@@ -11,8 +11,9 @@ type Response struct {
 
 type Item struct {
 	Name    string `json:"name"`
-	Version string `json:"version"`
-	Path    string `json:"path"`
+	Archive string `json:"archive"`
+	Ok 		bool   `json:"ok"`
+	Desc	string `json:"err_description,omitempty"`
 }
 
 type UploadResponse struct {
@@ -35,22 +36,22 @@ func newResponse(err error) Response {
 	return Response{ok, errmsg}
 }
 
-func newItem(name, version, path string) Item {
-	return Item{
-		name,
-		version,
-		path,
-	}
-}
+// func newItem(name, archive string, ok bool) Item {
+// 	return Item{
+// 		name,
+// 		archive,
+// 		ok,
+// 	}
+// }
 
-func newUploadResponse(name, version, path string, err error) UploadResponse {
-	return UploadResponse{
-		newResponse(err),
-		newItem(name, version, path),
-	}
-}
+// func newUploadResponse(name, path string, err error) UploadResponse {
+// 	return UploadResponse{
+// 		newResponse(err),
+// 		newItem(name, path, err == nil),
+// 	}
+// }
 
-func newHomeResponse(items []Item) HomeResponse {
+func newItemsResponse(items []Item) HomeResponse {
 	return HomeResponse{
 		newResponse(nil),
 		items,
@@ -67,14 +68,14 @@ func getResponseStr(r interface{}) (string, error) {
 }
 
 // This function returns the string containing the response json resulting after a file upload attempt.
-func GetUploadResponse(name, version, path string, err error) string {
-	res := newUploadResponse(name, version, path, err)
-	str, err := getResponseStr(res)
-	if err != nil {
-		return GetErrResponse(err)
-	}
-	return str
-}
+// func GetUploadResponse(name, archive string, err error) string {
+// 	res := newUploadResponse(name, archive, err)
+// 	str, err := getResponseStr(res)
+// 	if err != nil {
+// 		return GetErrResponse(err)
+// 	}
+// 	return str
+// }
 
 // This function returns a json string containing an error message.
 func GetErrResponse(err error) string {
@@ -87,8 +88,8 @@ func GetErrResponse(err error) string {
 }
 
 // This function returns a json string containing all the useful info for the home page.
-func GetHomeResponse(items []Item) string {
-	res := newHomeResponse(items)
+func GetItemsResponse(items []Item) string {
+	res := newItemsResponse(items)
 	str, err := getResponseStr(res)
 	if err != nil {
 		return GetErrResponse(err)
