@@ -16,14 +16,26 @@ type Item struct {
 	Desc	string `json:"err_description,omitempty"`
 }
 
+type Archive struct {
+	Name string `json:"name"`
+	Files []string `json:"files"`
+	Ok 		bool   `json:"ok,omitempty"`
+	Desc	string `json:"err_description,omitempty"`
+}
+
 type UploadResponse struct {
 	Response
 	Item Item `json:"item"`
 }
 
-type HomeResponse struct {
+type ItemsResponse struct {
 	Response
 	Items []Item `json:"items"`
+}
+
+type HomeResponse struct {
+	Response
+	Archives []Archive `json:"archives"`
 }
 
 func newResponse(err error) Response {
@@ -34,6 +46,22 @@ func newResponse(err error) Response {
 		errmsg = err.Error()
 	}
 	return Response{ok, errmsg}
+}
+
+func newArchive(name string, files []string) Archive {
+	return Archive{
+		Name: name,
+		Files: files,
+	}
+}
+
+func newArchiveErr(name string, err error) Archive {
+	return Archive{
+		name,
+		[]string{},
+		false,
+		err.Error(),
+	}
 }
 
 // func newItem(name, archive string, ok bool) Item {
@@ -51,8 +79,8 @@ func newResponse(err error) Response {
 // 	}
 // }
 
-func newItemsResponse(items []Item) HomeResponse {
-	return HomeResponse{
+func newItemsResponse(items []Item) ItemsResponse {
+	return ItemsResponse{
 		newResponse(nil),
 		items,
 	}
@@ -90,6 +118,18 @@ func GetErrResponse(err error) string {
 // This function returns a json string containing all the useful info for the home page.
 func GetItemsResponse(items []Item) string {
 	res := newItemsResponse(items)
+	str, err := getResponseStr(res)
+	if err != nil {
+		return GetErrResponse(err)
+	}
+	return str
+}
+
+func GetHomeResponse(a []Archive) string {
+	res := HomeResponse{
+		newResponse(nil),
+		a,
+	}
 	str, err := getResponseStr(res)
 	if err != nil {
 		return GetErrResponse(err)

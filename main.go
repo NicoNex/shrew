@@ -15,14 +15,6 @@ import (
 var cfg Config
 var wg sync.WaitGroup
 
-func check(e error) bool {
-	var isErr = (e != nil)
-	if isErr {
-		fmt.Println(e)
-	}
-	return isErr
-}
-
 func getQuery(name string, rawQuery string) (string, error) {
 	var queries = strings.Split(rawQuery, "&")
 	for _, q := range queries {
@@ -76,10 +68,58 @@ func saveFile(archive string, fname string, data []byte, c chan Item) {
 	c <- result
 }
 
+func getFileNames(dirpath string) ([]string, error) {
+	var ret []string
+	
+	files, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, f := range files {
+		ret = append(ret, f.Name())
+	}
+
+	return ret, nil
+}
+
+func fetchArchives(path string) ([]Archive, error) {
+	var archives []Archive
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return []Archive{}, err
+	}
+
+	for _, f := range files {
+		if f.IsDir() {
+			var tmp Archive
+
+			name := f.Name()
+			tmpname := fmt.Sprintf("%s/%s", path, name)
+			fnames, err := getFileNames(tmpname)
+			if err != nil {
+				tmp = newArchiveErr(name, err)
+			} else {
+				tmp = newArchive(name, fnames)
+			}
+			archives = append(archives, tmp)	
+		}
+	}
+
+	return archives, nil
+}
+
 // TODO: make it fetch the items from somewhere.
 func showHomePage(w http.ResponseWriter, r *http.Request) {
-	res := GetItemsResponse([]Item{})
-	fmt.Fprintf(w, res)
+	var response string
+
+	archives, err := fetchArchives(cfg.Path)
+	if err != nil {
+		response = GetErrResponse(err)
+	} else {
+		response = GetHomeResponse(archives)
+	}
+	fmt.Fprintf(w, response)
 }
 
 func getItems(itemch chan Item, outch chan []Item) {
@@ -88,7 +128,6 @@ func getItems(itemch chan Item, outch chan []Item) {
 	for i := range itemch {
 		items = append(items, i)
 	}
-
 	outch <- items
 }
 
@@ -153,8 +192,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Function coming soon...")
 }
 
-// TODO: refactor this function.
-func main() {
+func getConfig() Config {
 	var cfgpath string
 
 	if runtime.GOOS == "windows" {
@@ -165,14 +203,17 @@ func main() {
 		cfgpath = fmt.Sprintf("%s/.config/shrew/config.toml", home)
 	}
 
-	{
-		var err error
-		cfg, err = loadConfig(cfgpath)
-		if err != nil {
-			log.Fatal(err)
-		}
+	cfg, err := loadConfig(cfgpath)
+	if err != nil {
+		log.Fatal(err)
 	}
 
+	return cfg
+}
+
+// TODO: refactor this function.
+func main() {
+	cfg = getConfig()
 	http.HandleFunc("/", showHomePage)
 	http.HandleFunc("/upload", handleUpload)
 	http.HandleFunc("/download", handleDownload)
