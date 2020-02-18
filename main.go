@@ -87,7 +87,9 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var name string
 	var response string
 	var items []Item
-	var ichan = make(chan Item, 512)
+	var fileCount int
+	var ichan = make(chan Item)
+	var outchan = make(chan []Item, 1)
 
 	if r.Method != "POST" {
 		err = errors.New("Invalid request")
@@ -110,30 +112,40 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		goto write_response
 	}
 
+	// TODO: put this into a separate non-anonymous function.
+	go func(ichan chan Item, outchan chan []Item) {
+		var items []Item
+		
+		for i := range ichan {
+			items = append(items, i)
+		}
+		outchan <- items
+	}(ichan, outchan)
+
 	for _, headers := range r.MultipartForm.File {
 		for _, h := range headers {
 			tmp, err := h.Open()
 			if err != nil {
-				response = GetErrResponse(err)
-				goto write_response
+				log.Println(err)
+				continue
 			}
 			defer tmp.Close()
 
 			filename := h.Filename
 			filedata, err := ioutil.ReadAll(tmp)
-			if check(err) {
-				response = GetErrResponse(err)
-				goto write_response
+			if err != nil {
+				log.Println(err)
+				continue
 			}
+			fileCount++
 			wg.Add(1)
 			go saveFile(name, filename, filedata, ichan)
 		}
 	}
 	wg.Wait()
 	close(ichan)
-	for i := range ichan {
-		items = append(items, i)
-	}
+	items = <-outchan
+	close(outchan)
 
 	response = GetItemsResponse(items)
 write_response:
