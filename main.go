@@ -1,13 +1,19 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"log"
+	"sync"
 	"errors"
+	"runtime"
 	"strings"
 	"net/http"
 	"io/ioutil"
 )
+
+var cfg Config
+var wg sync.WaitGroup
 
 func check(e error) bool {
 	var isErr = (e != nil)
@@ -28,9 +34,50 @@ func getQuery(name string, rawQuery string) (string, error) {
 	return "", fmt.Errorf("%s: query not found", name)
 }
 
+func saveFile(archive string, fname string, data []byte, c chan Item) {
+	defer wg.Done()
+	var result Item
+
+	path := fmt.Sprintf("%s/%s", cfg.Path, archive)
+	if _, err := os.Stat(path); err != nil {
+		err := os.MkdirAll(path, 0644)
+		if err != nil {
+			c <- Item{
+				fname,
+				archive,
+				false,
+				err.Error(),
+			}
+			log.Println(err)
+			return
+		}
+	}
+
+	path = fmt.Sprintf("%s/%s", path, fname)
+	err := ioutil.WriteFile(path, data, 0644)
+	if err != nil {
+		c <- Item{
+			fname,
+			archive,
+			false,
+			err.Error(),
+		}
+		log.Println(err)
+		return
+	}
+
+	result = Item{
+		Name: fname,
+		Archive: archive,
+		Ok: true,
+	}
+
+	c <- result
+}
+
 // TODO: make it fetch the items from somewhere.
 func showHomePage(w http.ResponseWriter, r *http.Request) {
-	res := GetHomeResponse([]Item{})
+	res := GetItemsResponse([]Item{})
 	fmt.Fprintf(w, res)
 }
 
@@ -38,8 +85,9 @@ func showHomePage(w http.ResponseWriter, r *http.Request) {
 func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var name string
-	var version string
 	var response string
+	var items []Item
+	var ichan = make(chan Item, 100)
 
 	if r.Method != "POST" {
 		err = errors.New("Invalid request")
@@ -63,7 +111,6 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, headers := range r.MultipartForm.File {
-		fmt.Println("sas mike")
 		for _, h := range headers {
 			tmp, err := h.Open()
 			if err != nil {
@@ -72,19 +119,23 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 			}
 			defer tmp.Close()
 
-			fmt.Println(h.Filename)
 			filename := h.Filename
 			filedata, err := ioutil.ReadAll(tmp)
 			if check(err) {
 				response = GetErrResponse(err)
 				goto write_response
 			}
-			fmt.Println(filename, string(filedata))
-			// TODO: add the logic to save the file where specified.
+			wg.Add(1)
+			go saveFile(name, filename, filedata, ichan)
 		}
 	}
+	wg.Wait()
+	close(ichan)
+	for i := range ichan {
+		items = append(items, i)
+	}
 
-	response = GetUploadResponse(name, version, "put path here", err)
+	response = GetItemsResponse(items)
 write_response:
 	fmt.Fprint(w, response)
 }
@@ -94,11 +145,29 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Function coming soon...")
 }
 
-// TODO: load the config file.
 func main() {
+	var cfgpath string
+
+	if runtime.GOOS == "windows" {
+    	home := os.Getenv("UserProfile")
+    	cfgpath = fmt.Sprintf("%s/.shrew/config.toml", home)
+    } else {
+    	home := os.Getenv("HOME")
+    	cfgpath = fmt.Sprintf("%s/.config/shrew/config.toml", home)
+    }
+
+    {
+    	var err error
+	    cfg, err = loadConfig(cfgpath)
+	    if err != nil {
+	    	log.Fatal(err)
+	    }
+	}
+
     http.HandleFunc("/", showHomePage)
     http.HandleFunc("/upload", handleUpload)
     http.HandleFunc("/download", handleDownload)
 
-    log.Fatal(http.ListenAndServe(":8081", nil))
+    port := fmt.Sprintf(":%d", cfg.Port)
+    log.Fatal(http.ListenAndServe(port, nil))
 }
