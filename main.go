@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"errors"
 	"strings"
 	"net/http"
 	"io/ioutil"
@@ -40,6 +41,12 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var version string
 	var response string
 
+	if r.Method != "POST" {
+		err = errors.New("Invalid request")
+		response = GetErrResponse(err)
+		goto write_response
+	}
+
 	// 1Mb in memory the rest on the disk.
 	r.ParseMultipartForm(1048576)
 
@@ -49,15 +56,23 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		goto write_response		
 	}
 
-	version, err = getQuery("version", r.URL.RawQuery)
-	if check(err) {
+	if r.MultipartForm == nil {
+		err = errors.New("No file provided")
 		response = GetErrResponse(err)
 		goto write_response
 	}
 
 	for _, headers := range r.MultipartForm.File {
+		fmt.Println("sas mike")
 		for _, h := range headers {
-			tmp, _ := h.Open()
+			tmp, err := h.Open()
+			if err != nil {
+				response = GetErrResponse(err)
+				goto write_response
+			}
+			defer tmp.Close()
+
+			fmt.Println(h.Filename)
 			filename := h.Filename
 			filedata, err := ioutil.ReadAll(tmp)
 			if check(err) {
@@ -65,8 +80,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 				goto write_response
 			}
 			fmt.Println(filename, string(filedata))
-			// TODO: create a suitable filename with name, version and perhaps date.
-			// TODO: save the file somewhere.
+			// TODO: add the logic to save the file where specified.
 		}
 	}
 
