@@ -34,6 +34,7 @@ func getQuery(name string, rawQuery string) (string, error) {
 	return "", fmt.Errorf("%s: query not found", name)
 }
 
+// TODO: refactor this function.
 func saveFile(archive string, fname string, data []byte, c chan Item) {
 	defer wg.Done()
 	var result Item
@@ -81,13 +82,21 @@ func showHomePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, res)
 }
 
-// TODO: maybe refactor this function.
+func getItems(itemch chan Item, outch chan []Item) {
+	var items []Item
+
+	for i := range itemch {
+		items = append(items, i)
+	}
+
+	outch <- items
+}
+
+// TODO: refactor this function.
 func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var name string
 	var response string
-	var items []Item
-	var fileCount int
 	var ichan = make(chan Item)
 	var outchan = make(chan []Item, 1)
 
@@ -99,9 +108,8 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// 1Mb in memory the rest on the disk.
 	r.ParseMultipartForm(1048576)
-
 	name, err = getQuery("name", r.URL.RawQuery)
-	if check(err) {
+	if err != nil {
 		response = GetErrResponse(err)
 		goto write_response
 	}
@@ -112,16 +120,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		goto write_response
 	}
 
-	// TODO: put this into a separate non-anonymous function.
-	go func(ichan chan Item, outchan chan []Item) {
-		var items []Item
-		
-		for i := range ichan {
-			items = append(items, i)
-		}
-		outchan <- items
-	}(ichan, outchan)
-
+	go getItems(ichan, outchan)
 	for _, headers := range r.MultipartForm.File {
 		for _, h := range headers {
 			tmp, err := h.Open()
@@ -137,17 +136,14 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 				continue
 			}
-			fileCount++
 			wg.Add(1)
 			go saveFile(name, filename, filedata, ichan)
 		}
 	}
 	wg.Wait()
 	close(ichan)
-	items = <-outchan
+	response = GetItemsResponse(<-outchan)
 	close(outchan)
-
-	response = GetItemsResponse(items)
 write_response:
 	fmt.Fprint(w, response)
 }
@@ -157,29 +153,30 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Function coming soon...")
 }
 
+// TODO: refactor this function.
 func main() {
 	var cfgpath string
 
 	if runtime.GOOS == "windows" {
-    	home := os.Getenv("UserProfile")
-    	cfgpath = fmt.Sprintf("%s/.shrew/config.toml", home)
-    } else {
-    	home := os.Getenv("HOME")
-    	cfgpath = fmt.Sprintf("%s/.config/shrew/config.toml", home)
-    }
-
-    {
-    	var err error
-	    cfg, err = loadConfig(cfgpath)
-	    if err != nil {
-	    	log.Fatal(err)
-	    }
+		home := os.Getenv("UserProfile")
+		cfgpath = fmt.Sprintf("%s/.shrew/config.toml", home)
+	} else {
+		home := os.Getenv("HOME")
+		cfgpath = fmt.Sprintf("%s/.config/shrew/config.toml", home)
 	}
 
-    http.HandleFunc("/", showHomePage)
-    http.HandleFunc("/upload", handleUpload)
-    http.HandleFunc("/download", handleDownload)
+	{
+		var err error
+		cfg, err = loadConfig(cfgpath)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
-    port := fmt.Sprintf(":%d", cfg.Port)
-    log.Fatal(http.ListenAndServe(port, nil))
+	http.HandleFunc("/", showHomePage)
+	http.HandleFunc("/upload", handleUpload)
+	http.HandleFunc("/download", handleDownload)
+
+	port := fmt.Sprintf(":%d", cfg.Port)
+	log.Fatal(http.ListenAndServe(port, nil))
 }

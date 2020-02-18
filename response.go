@@ -12,7 +12,7 @@ type Response struct {
 type Item struct {
 	Name    string `json:"name"`
 	Archive string `json:"archive"`
-	Ok 		bool   `json:"ok"`
+	Ok 		bool   `json:"ok,omitempty"`
 	Desc	string `json:"err_description,omitempty"`
 }
 
