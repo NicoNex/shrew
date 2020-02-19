@@ -169,7 +169,7 @@ write_response:
 
 // TODO: complete this.
 func handleDownload(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Function coming soon...")
+	fmt.Fprintln(w, GetStatusResponse(nil))
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {
@@ -203,12 +203,12 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 		go collectItems(inch, outch)
 		for _, n := range namearr {
 			wg.Add(1)
-			go func(ch chan Item) {
+			go func(name string, ch chan Item) {
 				defer wg.Done()
-				path := filepath.Join(archpath, n)
+				path := filepath.Join(archpath, name)
 				err := os.Remove(path)
-				ch <- NewItem(n, archive, err)
-			}(inch)
+				ch <- NewItem(name, archive, err)
+			}(n, inch)
 		}
 		wg.Wait()
 		close(inch)
