@@ -206,7 +206,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 			go func(ch chan Item) {
 				defer wg.Done()
 				path := filepath.Join(archpath, n)
-				err := os.RemoveAll(path)
+				err := os.Remove(path)
 				ch <- NewItem(n, archive, err)
 			}(inch)
 		}

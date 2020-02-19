@@ -3,7 +3,7 @@ package main
 import "encoding/json"
 
 type Status struct {
-	Ok    bool   `json:"ok,omitempty"`
+	Ok    bool   `json:"ok"`
 	Error string `json:"error,omitempty"`
 }
 
