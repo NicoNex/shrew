@@ -84,7 +84,7 @@ func GetItemsResponse(items []Item) string {
 	res := NewItemsResponse(items)
 	str, err := marshalResponse(res)
 	if err != nil {
-		return GetErrResponse(err)
+		return GetStatusResponse(err)
 	}
 	return str
 }
@@ -96,7 +96,7 @@ func GetHomeResponse(a []Archive) string {
 	}
 	str, err := marshalResponse(res)
 	if err != nil {
-		return GetErrResponse(err)
+		return GetStatusResponse(err)
 	}
 	return str
 }
