@@ -19,7 +19,7 @@ type Archive struct {
 	Status
 }
 
-type UploadResponse struct {
+type ItemsResponse struct {
 	Status
 	Items []Item `json:"items"`
 }
@@ -63,8 +63,8 @@ func NewItem(name string, archive string, err error) Item {
 	}
 }
 
-func NewUploadResponse(items []Item) UploadResponse {
-	return UploadResponse{
+func NewItemsResponse(items []Item) ItemsResponse {
+	return ItemsResponse{
 		NewStatus(nil),
 		items,
 	}
@@ -79,19 +79,9 @@ func marshalResponse(r interface{}) (string, error) {
 	return string(data), nil
 }
 
-// This function returns a json string containing an error message.
-func GetErrResponse(err error) string {
-	res := NewStatus(err)
-	str, err := marshalResponse(res)
-	if err != nil {
-		return GetErrResponse(err)
-	}
-	return str
-}
-
 // This function returns a json string containing all the useful info for the home page.
-func GetUploadResponse(items []Item) string {
-	res := NewUploadResponse(items)
+func GetItemsResponse(items []Item) string {
+	res := NewItemsResponse(items)
 	str, err := marshalResponse(res)
 	if err != nil {
 		return GetErrResponse(err)
@@ -107,6 +97,16 @@ func GetHomeResponse(a []Archive) string {
 	str, err := marshalResponse(res)
 	if err != nil {
 		return GetErrResponse(err)
+	}
+	return str
+}
+
+// This function returns a json string containing only the status of a request.
+func GetStatusResponse(e error) string {
+	s := NewStatus(e)
+	str, err := marshalResponse(s)
+	if err != nil {
+		return GetStatusResponse(err)
 	}
 	return str
 }

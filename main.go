@@ -76,7 +76,6 @@ func fetchArchives(path string) ([]Archive, error) {
 
 			name := f.Name()
 			tmpname := filepath.Join(path, name)
-			fmt.Println(tmpname)
 			fnames, err := getDirEntries(tmpname)
 			if err != nil {
 				tmp = NewArchiveErr(name, err)
@@ -95,11 +94,11 @@ func showHomePage(w http.ResponseWriter, r *http.Request) {
 
 	archives, err := fetchArchives(cfg.Path)
 	if err != nil {
-		response = GetErrResponse(err)
+		response = GetStatusResponse(err)
 	} else {
 		response = GetHomeResponse(archives)
 	}
-	fmt.Fprintf(w, response)
+	fmt.Fprintln(w, response)
 }
 
 func collectItems(itemch chan Item, outch chan []Item) {
@@ -121,7 +120,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		err := errors.New("Invalid request")
-		response = GetErrResponse(err)
+		response = GetStatusResponse(err)
 		goto write_response
 	}
 
@@ -129,13 +128,13 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(1048576)
 	name, err = getQuery("name", r.URL.RawQuery)
 	if err != nil {
-		response = GetErrResponse(err)
+		response = GetStatusResponse(err)
 		goto write_response
 	}
 
 	if r.MultipartForm == nil {
 		err := errors.New("No file provided")
-		response = GetErrResponse(err)
+		response = GetStatusResponse(err)
 		goto write_response
 	}
 
@@ -161,10 +160,11 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 	close(ichan)
-	response = GetUploadResponse(<-outchan)
+	response = GetItemsResponse(<-outchan)
 	close(outchan)
+
 write_response:
-	fmt.Fprint(w, response)
+	fmt.Fprintln(w, response)
 }
 
 // TODO: complete this.
@@ -172,9 +172,52 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Function coming soon...")
 }
 
-// TODO: complete this.
 func handleDelete(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Function coming soon...")
+	var err error
+	var fnames string
+	var archive string
+	var response string
+	var archpath string
+	var wholeArchive bool
+
+	archive, err = getQuery("archive", r.URL.RawQuery)
+	if err != nil {
+		response = GetStatusResponse(err)
+		goto write_response
+	}
+
+	archpath = filepath.Join(cfg.Path, archive)
+	fnames, err = getQuery("files", r.URL.RawQuery)
+	if err != nil {
+		wholeArchive = true
+	}
+
+	if wholeArchive {
+		err := os.RemoveAll(archpath)
+		response = GetStatusResponse(err)
+	} else {
+		namearr := strings.Split(fnames, ",")
+		inch := make(chan Item, len(namearr))
+		outch := make(chan []Item, 1)
+
+		go collectItems(inch, outch)
+		for _, n := range namearr {
+			wg.Add(1)
+			go func(ch chan Item) {
+				defer wg.Done()
+				path := filepath.Join(archpath, n)
+				err := os.RemoveAll(path)
+				ch <- NewItem(n, archive, err)
+			}(inch)
+		}
+		wg.Wait()
+		close(inch)
+		response = GetItemsResponse(<-outch)
+		close(outch)
+	}
+
+write_response:
+	fmt.Fprintln(w, response)
 }
 
 func getConfig() Config {
