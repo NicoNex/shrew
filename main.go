@@ -1,15 +1,15 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"log"
-	"sync"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
 	"runtime"
 	"strings"
-	"net/http"
-	"io/ioutil"
+	"sync"
 )
 
 var cfg Config
@@ -29,8 +29,6 @@ func getQuery(name string, rawQuery string) (string, error) {
 // TODO: refactor this function.
 func saveFile(archive string, fname string, data []byte, c chan Item) {
 	defer wg.Done()
-	var result Item
-
 	path := fmt.Sprintf("%s/%s", cfg.Path, archive)
 	if _, err := os.Stat(path); err != nil {
 		err := os.MkdirAll(path, 0644)
@@ -38,8 +36,7 @@ func saveFile(archive string, fname string, data []byte, c chan Item) {
 			c <- Item{
 				fname,
 				archive,
-				false,
-				err.Error(),
+				NewStatus(err),
 			}
 			log.Println(err)
 			return
@@ -52,25 +49,22 @@ func saveFile(archive string, fname string, data []byte, c chan Item) {
 		c <- Item{
 			fname,
 			archive,
-			false,
-			err.Error(),
+			NewStatus(err),
 		}
 		log.Println(err)
 		return
 	}
 
-	result = Item{
-		Name: fname,
-		Archive: archive,
-		Ok: true,
+	c <- Item{
+		fname,
+		archive,
+		NewStatus(nil),
 	}
-
-	c <- result
 }
 
-func getFileNames(dirpath string) ([]string, error) {
+func getDirEntries(dirpath string) ([]string, error) {
 	var ret []string
-	
+
 	files, err := ioutil.ReadDir(dirpath)
 	if err != nil {
 		return []string{}, err
@@ -96,20 +90,19 @@ func fetchArchives(path string) ([]Archive, error) {
 
 			name := f.Name()
 			tmpname := fmt.Sprintf("%s/%s", path, name)
-			fnames, err := getFileNames(tmpname)
+			fnames, err := getDirEntries(tmpname)
 			if err != nil {
-				tmp = newArchiveErr(name, err)
+				tmp = NewArchiveErr(name, err)
 			} else {
-				tmp = newArchive(name, fnames)
+				tmp = NewArchive(name, fnames)
 			}
-			archives = append(archives, tmp)	
+			archives = append(archives, tmp)
 		}
 	}
 
 	return archives, nil
 }
 
-// TODO: make it fetch the items from somewhere.
 func showHomePage(w http.ResponseWriter, r *http.Request) {
 	var response string
 
@@ -140,12 +133,12 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var outchan = make(chan []Item, 1)
 
 	if r.Method != "POST" {
-		err = errors.New("Invalid request")
+		err := errors.New("Invalid request")
 		response = GetErrResponse(err)
 		goto write_response
 	}
 
-	// 1Mb in memory the rest on the disk.
+	// 1Mb in memory the rest on disk.
 	r.ParseMultipartForm(1048576)
 	name, err = getQuery("name", r.URL.RawQuery)
 	if err != nil {
@@ -154,7 +147,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.MultipartForm == nil {
-		err = errors.New("No file provided")
+		err := errors.New("No file provided")
 		response = GetErrResponse(err)
 		goto write_response
 	}
@@ -167,10 +160,10 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 				continue
 			}
-			defer tmp.Close()
 
 			filename := h.Filename
 			filedata, err := ioutil.ReadAll(tmp)
+			tmp.Close()
 			if err != nil {
 				log.Println(err)
 				continue
@@ -181,7 +174,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 	close(ichan)
-	response = GetItemsResponse(<-outchan)
+	response = GetUploadResponse(<-outchan)
 	close(outchan)
 write_response:
 	fmt.Fprint(w, response)
@@ -211,7 +204,6 @@ func getConfig() Config {
 	return cfg
 }
 
-// TODO: refactor this function.
 func main() {
 	cfg = getConfig()
 	http.HandleFunc("/", showHomePage)

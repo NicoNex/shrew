@@ -1,87 +1,71 @@
 package main
 
-import (
-	"encoding/json"
-)
+import "encoding/json"
 
-type Response struct {
-	Ok    bool   `json:"ok"`
+type Status struct {
+	Ok    bool   `json:"ok,omitempty"`
 	Error string `json:"error,omitempty"`
 }
 
 type Item struct {
 	Name    string `json:"name"`
 	Archive string `json:"archive"`
-	Ok 		bool   `json:"ok,omitempty"`
-	Desc	string `json:"err_description,omitempty"`
+	Status
 }
 
 type Archive struct {
-	Name string `json:"name"`
+	Name  string   `json:"name"`
 	Files []string `json:"files"`
-	Ok 		bool   `json:"ok,omitempty"`
-	Desc	string `json:"err_description,omitempty"`
+	Status
 }
 
 type UploadResponse struct {
-	Response
-	Item Item `json:"item"`
-}
-
-type ItemsResponse struct {
-	Response
+	Status
 	Items []Item `json:"items"`
 }
 
 type HomeResponse struct {
-	Response
+	Status
 	Archives []Archive `json:"archives"`
 }
 
-func newResponse(err error) Response {
+func NewStatus(err error) Status {
 	var ok = (err == nil)
 	var errmsg string
-	
+
 	if !ok {
 		errmsg = err.Error()
 	}
-	return Response{ok, errmsg}
+	return Status{ok, errmsg}
 }
 
-func newArchive(name string, files []string) Archive {
+func NewArchive(name string, files []string) Archive {
 	return Archive{
-		Name: name,
-		Files: files,
+		name,
+		files,
+		NewStatus(nil),
 	}
 }
 
-func newArchiveErr(name string, err error) Archive {
+func NewArchiveErr(name string, err error) Archive {
 	return Archive{
 		name,
 		[]string{},
-		false,
-		err.Error(),
+		NewStatus(err),
 	}
 }
 
-// func newItem(name, archive string, ok bool) Item {
-// 	return Item{
-// 		name,
-// 		archive,
-// 		ok,
-// 	}
-// }
+func NewItem(name, archive string, ok bool) Item {
+	return Item{
+		name,
+		archive,
+		NewStatus(nil),
+	}
+}
 
-// func newUploadResponse(name, path string, err error) UploadResponse {
-// 	return UploadResponse{
-// 		newResponse(err),
-// 		newItem(name, path, err == nil),
-// 	}
-// }
-
-func newItemsResponse(items []Item) ItemsResponse {
-	return ItemsResponse{
-		newResponse(nil),
+func NewUploadResponse(items []Item) UploadResponse {
+	return UploadResponse{
+		NewStatus(nil),
 		items,
 	}
 }
@@ -95,19 +79,9 @@ func getResponseStr(r interface{}) (string, error) {
 	return string(data), nil
 }
 
-// This function returns the string containing the response json resulting after a file upload attempt.
-// func GetUploadResponse(name, archive string, err error) string {
-// 	res := newUploadResponse(name, archive, err)
-// 	str, err := getResponseStr(res)
-// 	if err != nil {
-// 		return GetErrResponse(err)
-// 	}
-// 	return str
-// }
-
 // This function returns a json string containing an error message.
 func GetErrResponse(err error) string {
-	res := newResponse(err)
+	res := NewStatus(err)
 	str, err := getResponseStr(res)
 	if err != nil {
 		return GetErrResponse(err)
@@ -116,8 +90,8 @@ func GetErrResponse(err error) string {
 }
 
 // This function returns a json string containing all the useful info for the home page.
-func GetItemsResponse(items []Item) string {
-	res := newItemsResponse(items)
+func GetUploadResponse(items []Item) string {
+	res := NewUploadResponse(items)
 	str, err := getResponseStr(res)
 	if err != nil {
 		return GetErrResponse(err)
@@ -127,7 +101,7 @@ func GetItemsResponse(items []Item) string {
 
 func GetHomeResponse(a []Archive) string {
 	res := HomeResponse{
-		newResponse(nil),
+		NewStatus(nil),
 		a,
 	}
 	str, err := getResponseStr(res)
