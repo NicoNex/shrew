@@ -71,7 +71,7 @@ func NewUploadResponse(items []Item) UploadResponse {
 }
 
 // This function marshals any struct and returns the string containing the resulting json.
-func getResponseStr(r interface{}) (string, error) {
+func marshalResponse(r interface{}) (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
 		return "", err
@@ -82,7 +82,7 @@ func getResponseStr(r interface{}) (string, error) {
 // This function returns a json string containing an error message.
 func GetErrResponse(err error) string {
 	res := NewStatus(err)
-	str, err := getResponseStr(res)
+	str, err := marshalResponse(res)
 	if err != nil {
 		return GetErrResponse(err)
 	}
@@ -92,7 +92,7 @@ func GetErrResponse(err error) string {
 // This function returns a json string containing all the useful info for the home page.
 func GetUploadResponse(items []Item) string {
 	res := NewUploadResponse(items)
-	str, err := getResponseStr(res)
+	str, err := marshalResponse(res)
 	if err != nil {
 		return GetErrResponse(err)
 	}
@@ -104,7 +104,7 @@ func GetHomeResponse(a []Archive) string {
 		NewStatus(nil),
 		a,
 	}
-	str, err := getResponseStr(res)
+	str, err := marshalResponse(res)
 	if err != nil {
 		return GetErrResponse(err)
 	}
