@@ -55,11 +55,11 @@ func NewArchiveErr(name string, err error) Archive {
 	}
 }
 
-func NewItem(name, archive string, ok bool) Item {
+func NewItem(name string, archive string, err error) Item {
 	return Item{
 		name,
 		archive,
-		NewStatus(nil),
+		NewStatus(err),
 	}
 }
 

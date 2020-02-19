@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -26,40 +27,25 @@ func getQuery(name string, rawQuery string) (string, error) {
 	return "", fmt.Errorf("%s: query not found", name)
 }
 
-// TODO: refactor this function.
 func saveFile(archive string, fname string, data []byte, c chan Item) {
 	defer wg.Done()
-	path := fmt.Sprintf("%s/%s", cfg.Path, archive)
+	path := filepath.Join(cfg.Path, archive)
 	if _, err := os.Stat(path); err != nil {
-		err := os.MkdirAll(path, 0644)
-		if err != nil {
-			c <- Item{
-				fname,
-				archive,
-				NewStatus(err),
-			}
+		if err := os.MkdirAll(path, 0644); err != nil {
+			c <- NewItem(fname, archive, err)
 			log.Println(err)
 			return
 		}
 	}
 
-	path = fmt.Sprintf("%s/%s", path, fname)
-	err := ioutil.WriteFile(path, data, 0644)
-	if err != nil {
-		c <- Item{
-			fname,
-			archive,
-			NewStatus(err),
-		}
+	path = filepath.Join(path, fname)
+	if err := ioutil.WriteFile(path, data, 0644); err != nil {
+		c <- NewItem(fname, archive, err)
 		log.Println(err)
 		return
 	}
 
-	c <- Item{
-		fname,
-		archive,
-		NewStatus(nil),
-	}
+	c <- NewItem(fname, archive, nil)
 }
 
 func getDirEntries(dirpath string) ([]string, error) {
@@ -89,7 +75,8 @@ func fetchArchives(path string) ([]Archive, error) {
 			var tmp Archive
 
 			name := f.Name()
-			tmpname := fmt.Sprintf("%s/%s", path, name)
+			tmpname := filepath.Join(path, name)
+			fmt.Println(tmpname)
 			fnames, err := getDirEntries(tmpname)
 			if err != nil {
 				tmp = NewArchiveErr(name, err)
@@ -115,7 +102,7 @@ func showHomePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, response)
 }
 
-func getItems(itemch chan Item, outch chan []Item) {
+func collectItems(itemch chan Item, outch chan []Item) {
 	var items []Item
 
 	for i := range itemch {
@@ -152,7 +139,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		goto write_response
 	}
 
-	go getItems(ichan, outchan)
+	go collectItems(ichan, outchan)
 	for _, headers := range r.MultipartForm.File {
 		for _, h := range headers {
 			tmp, err := h.Open()
@@ -185,22 +172,24 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Function coming soon...")
 }
 
+// TODO: complete this.
+func handleDelete(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Function coming soon...")
+}
+
 func getConfig() Config {
 	var cfgpath string
 
 	if runtime.GOOS == "windows" {
-		home := os.Getenv("UserProfile")
-		cfgpath = fmt.Sprintf("%s/.shrew/config.toml", home)
+		cfgpath = filepath.Join(os.Getenv("UserProfile"), ".shrew/config.toml")
 	} else {
-		home := os.Getenv("HOME")
-		cfgpath = fmt.Sprintf("%s/.config/shrew/config.toml", home)
+		cfgpath = filepath.Join(os.Getenv("HOME"), ".config/shrew/config.toml")
 	}
 
 	cfg, err := loadConfig(cfgpath)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return cfg
 }
 
@@ -209,6 +198,7 @@ func main() {
 	http.HandleFunc("/", showHomePage)
 	http.HandleFunc("/upload", handleUpload)
 	http.HandleFunc("/download", handleDownload)
+	http.HandleFunc("/delete", handleDelete)
 
 	port := fmt.Sprintf(":%d", cfg.Port)
 	log.Fatal(http.ListenAndServe(port, nil))
