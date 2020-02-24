@@ -10,6 +10,7 @@ type Status struct {
 type Item struct {
 	Name    string `json:"name"`
 	Archive string `json:"archive"`
+	Path    string `json:"path,omitempty"`
 	Status
 }
 
@@ -55,10 +56,11 @@ func NewArchiveErr(name string, err error) Archive {
 	}
 }
 
-func NewItem(name string, archive string, err error) Item {
+func NewItem(name string, archive string, path string, err error) Item {
 	return Item{
 		name,
 		archive,
+		path,
 		NewStatus(err),
 	}
 }
@@ -70,7 +72,8 @@ func NewItemsResponse(items []Item) ItemsResponse {
 	}
 }
 
-// This function marshals any struct and returns the string containing the resulting json.
+// This function marshals any struct and returns the string containing
+// the resulting json.
 func marshalResponse(r interface{}) (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -79,7 +82,8 @@ func marshalResponse(r interface{}) (string, error) {
 	return string(data), nil
 }
 
-// This function returns a json string containing all the useful info for the home page.
+// This function returns a json string containing all the useful info for
+// the home page.
 func GetItemsResponse(items []Item) string {
 	res := NewItemsResponse(items)
 	str, err := marshalResponse(res)

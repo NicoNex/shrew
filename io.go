@@ -7,25 +7,33 @@ import (
 	"path/filepath"
 )
 
+// Returns true if a file or directory exists.
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// Saves a file on the disk and sends the info in the channel provided.
 func saveFile(archive string, fname string, data []byte, c chan Item) {
 	defer wg.Done()
 	path := filepath.Join(cfg.Path, archive)
-	if _, err := os.Stat(path); err != nil {
-		if err := os.MkdirAll(path, 0644); err != nil {
-			c <- NewItem(fname, archive, err)
+	if !exists(path) {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			c <- NewItem(fname, archive, "", err)
 			log.Println(err)
 			return
 		}
 	}
 
 	path = filepath.Join(path, fname)
-	if err := ioutil.WriteFile(path, data, 0644); err != nil {
-		c <- NewItem(fname, archive, err)
+	err := ioutil.WriteFile(path, data, 0755)
+	if err != nil {
+		c <- NewItem(fname, archive, "", err)
 		log.Println(err)
 		return
 	}
 
-	c <- NewItem(fname, archive, nil)
+	c <- NewItem(fname, archive, path, nil)
 }
 
 func getDirEntries(dirpath string) ([]string, error) {
@@ -42,6 +50,7 @@ func getDirEntries(dirpath string) ([]string, error) {
 	return ret, nil
 }
 
+// Fetches all the archives from disk and returns them.
 func fetchArchives(path string) ([]Archive, error) {
 	var archives []Archive
 

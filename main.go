@@ -145,7 +145,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 				defer wg.Done()
 				path := filepath.Join(archpath, name)
 				err := os.Remove(path)
-				ch <- NewItem(name, archive, err)
+				ch <- NewItem(name, archive, path, err)
 			}(n, inch)
 		}
 		wg.Wait()
@@ -181,14 +181,22 @@ func main() {
  (_)_">
 _)      Shrew running...
 `
-
+	fmt.Print(msg)
 	cfg = getConfig()
+
+	if !exists(cfg.Path) {
+		log.Println("Archive directory not found, creating it...")
+		err := os.MkdirAll(cfg.Path, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	http.HandleFunc("/", handleMainPage)
 	http.HandleFunc("/upload", handleUpload)
 	http.HandleFunc("/download", handleDownload)
 	http.HandleFunc("/delete", handleDelete)
 
 	port := fmt.Sprintf(":%d", cfg.Port)
-	fmt.Print(msg)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
