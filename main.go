@@ -16,6 +16,7 @@ import (
 var cfg Config
 var wg sync.WaitGroup
 
+// Returns the value of an url raw query or error if missing.
 func getQuery(name string, rawQuery string) (string, error) {
 	var queries = strings.Split(rawQuery, "&")
 	for _, q := range queries {
@@ -27,69 +28,8 @@ func getQuery(name string, rawQuery string) (string, error) {
 	return "", fmt.Errorf("%s: query not found", name)
 }
 
-func saveFile(archive string, fname string, data []byte, c chan Item) {
-	defer wg.Done()
-	path := filepath.Join(cfg.Path, archive)
-	if _, err := os.Stat(path); err != nil {
-		if err := os.MkdirAll(path, 0644); err != nil {
-			c <- NewItem(fname, archive, err)
-			log.Println(err)
-			return
-		}
-	}
-
-	path = filepath.Join(path, fname)
-	if err := ioutil.WriteFile(path, data, 0644); err != nil {
-		c <- NewItem(fname, archive, err)
-		log.Println(err)
-		return
-	}
-
-	c <- NewItem(fname, archive, nil)
-}
-
-func getDirEntries(dirpath string) ([]string, error) {
-	var ret []string
-
-	files, err := ioutil.ReadDir(dirpath)
-	if err != nil {
-		return []string{}, err
-	}
-	for _, f := range files {
-		ret = append(ret, f.Name())
-	}
-
-	return ret, nil
-}
-
-func fetchArchives(path string) ([]Archive, error) {
-	var archives []Archive
-
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		return []Archive{}, err
-	}
-
-	for _, f := range files {
-		if f.IsDir() {
-			var tmp Archive
-
-			name := f.Name()
-			tmpname := filepath.Join(path, name)
-			fnames, err := getDirEntries(tmpname)
-			if err != nil {
-				tmp = NewArchiveErr(name, err)
-			} else {
-				tmp = NewArchive(name, fnames)
-			}
-			archives = append(archives, tmp)
-		}
-	}
-
-	return archives, nil
-}
-
-func showHomePage(w http.ResponseWriter, r *http.Request) {
+// Serves the main data in the body of the request.
+func handleMainPage(w http.ResponseWriter, r *http.Request) {
 	var response string
 
 	archives, err := fetchArchives(cfg.Path)
@@ -101,6 +41,8 @@ func showHomePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, response)
 }
 
+// Collects all the Item objects sent in the itemch and sends the
+// reulting array in the outch.
 func collectItems(itemch chan Item, outch chan []Item) {
 	var items []Item
 
@@ -110,7 +52,7 @@ func collectItems(itemch chan Item, outch chan []Item) {
 	outch <- items
 }
 
-// TODO: refactor this function.
+// Handles the upload of a file or archive and stores it.
 func handleUpload(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var name string
@@ -126,7 +68,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// 1Mb in memory the rest on disk.
 	r.ParseMultipartForm(1048576)
-	name, err = getQuery("name", r.URL.RawQuery)
+	name, err = getQuery("archive", r.URL.RawQuery)
 	if err != nil {
 		response = GetStatusResponse(err)
 		goto write_response
@@ -172,13 +114,13 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, GetStatusResponse(nil))
 }
 
+// Handles the removal of a file or archive.
 func handleDelete(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var fnames string
 	var archive string
 	var response string
 	var archpath string
-	var wholeArchive bool
 
 	archive, err = getQuery("archive", r.URL.RawQuery)
 	if err != nil {
@@ -189,10 +131,6 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	archpath = filepath.Join(cfg.Path, archive)
 	fnames, err = getQuery("files", r.URL.RawQuery)
 	if err != nil {
-		wholeArchive = true
-	}
-
-	if wholeArchive {
 		err := os.RemoveAll(archpath)
 		response = GetStatusResponse(err)
 	} else {
@@ -220,6 +158,7 @@ write_response:
 	fmt.Fprintln(w, response)
 }
 
+// Returns a Config object with values from the config file.
 func getConfig() Config {
 	var cfgpath string
 
@@ -237,12 +176,19 @@ func getConfig() Config {
 }
 
 func main() {
+	var msg = `
+  __QQ
+ (_)_">
+_)      Shrew running...
+`
+
 	cfg = getConfig()
-	http.HandleFunc("/", showHomePage)
+	http.HandleFunc("/", handleMainPage)
 	http.HandleFunc("/upload", handleUpload)
 	http.HandleFunc("/download", handleDownload)
 	http.HandleFunc("/delete", handleDelete)
 
 	port := fmt.Sprintf(":%d", cfg.Port)
+	fmt.Print(msg)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
