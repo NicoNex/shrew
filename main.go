@@ -179,13 +179,13 @@ func main() {
 	var msg = `
   __QQ
  (_)_">
-_)      Shrew running...
+_)      Shrew running..
 `
 	fmt.Print(msg)
 	cfg = getConfig()
 
 	if !exists(cfg.Path) {
-		log.Println("Archive directory not found, creating it...")
+		log.Println("Archive directory not found, creating it.")
 		err := os.MkdirAll(cfg.Path, 0755)
 		if err != nil {
 			log.Fatal(err)
