@@ -143,7 +143,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 	archpath = filepath.Join(cfg.Path, archive)
 	if !exists(archpath) {
-		err = fmt.Errorf("%s: archive not found")
+		err = fmt.Errorf("%s: archive not found", archive)
 		log.Println(err)
 		response = GetStatusResponse(err)
 		goto write_response
@@ -239,6 +239,7 @@ func main() {
   __QQ
  (_)_">
 _)      shrew running..
+
 `
 	fmt.Print(msg)
 	cfg = getConfig()
