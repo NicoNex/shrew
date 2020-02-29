@@ -152,11 +152,13 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 	cmp = NewCompression(comp)
 	archfile = cmp.GetFilename(archive)
 	cachepath = filepath.Join(cachepath, archfile)
-	err = cmp.Compress(archpath, cachepath)
-	if err != nil {
-		log.Println(err)
-		response = GetStatusResponse(err)
-		goto write_response
+	if !exists(cachepath) {
+		err = cmp.Compress(archpath, cachepath)
+		if err != nil {
+			log.Println(err)
+			response = GetStatusResponse(err)
+			goto write_response
+		}
 	}
 
 	http.ServeFile(w, r, cachepath)

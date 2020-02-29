@@ -28,7 +28,7 @@ func NewCompression(name string) Compression {
 		}
 	case "tarzstd":
 		return Compression{
-			ext: ".tar.zstd",
+			ext: ".tar.zst",
 			arc: archiver.NewTarZstd(),
 		}
 	default:
