@@ -6,13 +6,13 @@ import (
 	"github.com/mholt/archiver/v3"
 )
 
-type archCreator interface {
+type tar interface {
 	Archive(src []string, dest string) error
 }
 
 type Compression struct {
 	ext string
-	arc archCreator
+	arc tar
 }
 
 func extract(src string, dest string) error {
@@ -20,22 +20,30 @@ func extract(src string, dest string) error {
 }
 
 func NewCompression(name string) Compression {
+	var t tar
+	var e string
+
 	switch name {
 	case "targz":
-		return Compression{
-			ext: ".tar.gz",
-			arc: archiver.NewTarGz(),
-		}
+		e = ".tar.gz"
+		tmp := archiver.NewTarGz()
+		tmp.OverwriteExisting = true
+		t = tmp
 	case "tarzstd":
-		return Compression{
-			ext: ".tar.zst",
-			arc: archiver.NewTarZstd(),
-		}
+		e = ".tar.zst"
+		tmp := archiver.NewTarZstd()
+		tmp.OverwriteExisting = true
+		t = tmp
 	default:
-		return Compression{
-			ext: ".zip",
-			arc: archiver.NewZip(),
-		}
+		e = ".zip"
+		tmp := archiver.NewZip()
+		tmp.OverwriteExisting = true
+		t = tmp
+	}
+
+	return Compression{
+		ext: e,
+		arc: t,
 	}
 }
 

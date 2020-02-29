@@ -152,7 +152,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 	cmp = NewCompression(comp)
 	archfile = cmp.GetFilename(archive)
 	cachepath = filepath.Join(cachepath, archfile)
-	if !exists(cachepath) {
+	if !exists(cachepath) || !isUpToDate(archpath, cachepath) {
 		err = cmp.Compress(archpath, cachepath)
 		if err != nil {
 			log.Println(err)
@@ -162,14 +162,14 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, cachepath)
-	response = GetItemsResponse([]Item{
-		Item{
-			Name:    archfile,
-			Archive: archive,
-			Hash:    checksum(cachepath),
-			Status:  NewStatus(nil),
-		},
-	})
+	// response = GetItemsResponse([]Item{
+	// 	Item{
+	// 		Name:    archfile,
+	// 		Archive: archive,
+	// 		Hash:    checksum(cachepath),
+	// 		Status:  NewStatus(nil),
+	// 	},
+	// })
 
 write_response:
 	fmt.Fprintln(w, response)

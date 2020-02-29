@@ -95,3 +95,21 @@ func checksum(fpath string) string {
 
 	return string(hash.Sum(nil))
 }
+
+func isUpToDate(arname string, ccname string) bool {
+	archinfo, err := os.Stat(arname)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	cacheinfo, err := os.Stat(ccname)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	cachetime := cacheinfo.ModTime()
+	archtime := archinfo.ModTime()
+	return cachetime.After(archtime)
+}
