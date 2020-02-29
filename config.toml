@@ -1,3 +1,7 @@
 archive_path = ".shrew/"
 connection_port = 8081
+cache_archives = true
 allow_overwrite = false
+
+# Available compressions: zip, tarzstd, targz.
+compression = "tarzstd"

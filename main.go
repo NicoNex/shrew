@@ -29,7 +29,7 @@ func getQuery(name string, rawQuery string) (string, error) {
 }
 
 // Serves the main data in the body of the request.
-func handleMainPage(w http.ResponseWriter, r *http.Request) {
+func rootHandler(w http.ResponseWriter, r *http.Request) {
 	var response string
 
 	archives, err := fetchArchives(cfg.Path)
@@ -53,7 +53,7 @@ func collectItems(itemch chan Item, outch chan []Item) {
 }
 
 // Handles the upload of a file or archive and stores it.
-func handleUpload(w http.ResponseWriter, r *http.Request) {
+func putHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var name string
 	var response string
@@ -110,12 +110,56 @@ write_response:
 }
 
 // TODO: complete this.
-func handleDownload(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, GetStatusResponse(nil))
+func getHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var comp string
+	var fnames string
+	var archive string
+	var response string
+	var archpath string
+	var cachepath string
+	var format Format
+
+	archive, err = getQuery("archive", r.URL.RawQuery)
+	if err != nil {
+		log.Println(err)
+		response = GetStatusResponse(err)
+		goto write_response
+	}
+	
+	cachepath = filepath.Join(cfg.Path, ".cache")
+	if !exists(cachepath) {
+		if err = os.MkdirAll(cachepath, 0755); err != nil {
+			log.Println(err)
+			response = GetStatusResponse(err)
+			goto write_response
+		}
+	}
+
+	comp, err = getQuery("compression", r.URL.RawQuery)
+	if err != nil {
+		comp = cfg.Compression
+	}
+
+
+
+	archpath = filepath.Join(cfg.Path, archive)
+
+
+
+	cachepath = filepath.Join(cachepath, )
+	err = compress()
+
+
+
+
+
+write_response:
+	fmt.Fprintln(w, response)
 }
 
 // Handles the removal of a file or archive.
-func handleDelete(w http.ResponseWriter, r *http.Request) {
+func delHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var fnames string
 	var archive string
@@ -179,7 +223,7 @@ func main() {
 	var msg = `
   __QQ
  (_)_">
-_)      Shrew running..
+_)      shrew running..
 `
 	fmt.Print(msg)
 	cfg = getConfig()
@@ -192,10 +236,10 @@ _)      Shrew running..
 		}
 	}
 
-	http.HandleFunc("/", handleMainPage)
-	http.HandleFunc("/upload", handleUpload)
-	http.HandleFunc("/download", handleDownload)
-	http.HandleFunc("/delete", handleDelete)
+	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/put", putHandler)
+	http.HandleFunc("/get", getHandler)
+	http.HandleFunc("/del", delHandler)
 
 	port := fmt.Sprintf(":%d", cfg.Port)
 	log.Fatal(http.ListenAndServe(port, nil))

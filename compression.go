@@ -2,33 +2,44 @@ package main
 
 import "github.com/mholt/archiver/v3"
 
-type Format int8
-const (
-	Zip 	 Format = iota
-	TarGz
-	TarZstd
-)
-
-type Archiver interface {
+type archiver interface {
 	Archive(src []string, dest string) error
 	Unarchive(src, dest string) error
 }
 
-func compress(src string, dest string, f Format) error {
-	var arc Archiver
-
-	switch f {
-	case Zip:
-		arc = archiver.NewZip()
-	case TarZstd:
-		arc = archiver.NewTarZstd()
-	case TarGz:
-		arc = archiver.NewTarGz()
-	}
-
-	return arc.Archive([]string{src}, dest)
+type Compression struct {
+	ext string
+	arc archiver
 }
 
 func extract(src string, dest string) error {
 	return archiver.Unarchive(src, dest)
+}
+
+func NewCompression(name string) Compression {
+	switch name {
+	case "targz":
+		return Compression{
+			ext: ".tar.gz",
+			arc: archiver.NewTarGz(),
+		}
+	case "tarzstd":
+		return Compression{
+			ext: ".tar.zstd",
+			arc: archiver.NewTarZstd(),
+		}
+	default:
+		return Compression{
+			ext: ".zip",
+			arc: archiver.NewZip(),
+		}
+	}
+}
+
+func (c Compression) GetFilename(fname string) string {
+	return strings.Join([]string{fname, c.ext}, "")
+}
+
+func (c Compression) Compress(src string, dest string) error {
+	return c.arc.Archive([]string{src}, dest)
 }
