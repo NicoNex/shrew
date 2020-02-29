@@ -1,12 +1,12 @@
 package main
 
 import (
+	"crypto/sha256"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"crypto/sha256"
 )
 
 // Returns true if a file or directory exists.

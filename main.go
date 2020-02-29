@@ -162,10 +162,10 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, cachepath)
 	response = GetItemsResponse([]Item{
 		Item{
-			Name: archfile,
+			Name:    archfile,
 			Archive: archive,
-			Hash: checksum(cachepath),
-			Status: NewStatus(nil),
+			Hash:    checksum(cachepath),
+			Status:  NewStatus(nil),
 		},
 	})
 

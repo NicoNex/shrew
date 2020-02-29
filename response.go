@@ -11,7 +11,7 @@ type Item struct {
 	Name    string `json:"name"`
 	Archive string `json:"archive"`
 	Path    string `json:"path,omitempty"`
-	Hash	string `json:"sha256sum,omitempty"`
+	Hash    string `json:"sha256sum,omitempty"`
 	Status
 }
 
@@ -59,10 +59,10 @@ func NewArchiveErr(name string, err error) Archive {
 
 func NewItem(name string, archive string, path string, err error) Item {
 	return Item{
-		Name: name,
+		Name:    name,
 		Archive: archive,
-		Path: path,
-		Status: NewStatus(err),
+		Path:    path,
+		Status:  NewStatus(err),
 	}
 }
 
