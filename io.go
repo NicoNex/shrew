@@ -1,10 +1,12 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"crypto/sha256"
 )
 
 // Returns true if a file or directory exists.
@@ -76,4 +78,20 @@ func fetchArchives(path string) ([]Archive, error) {
 	}
 
 	return archives, nil
+}
+
+func checksum(fpath string) string {
+	file, err := os.Open(fpath)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return ""
+	}
+
+	return string(hash.Sum(nil))
 }

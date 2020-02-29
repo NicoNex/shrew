@@ -11,6 +11,7 @@ type Item struct {
 	Name    string `json:"name"`
 	Archive string `json:"archive"`
 	Path    string `json:"path,omitempty"`
+	Hash	string `json:"sha256sum,omitempty"`
 	Status
 }
 
@@ -25,7 +26,7 @@ type ItemsResponse struct {
 	Items []Item `json:"items"`
 }
 
-type HomeResponse struct {
+type RootResponse struct {
 	Status
 	Archives []Archive `json:"archives"`
 }
@@ -58,10 +59,10 @@ func NewArchiveErr(name string, err error) Archive {
 
 func NewItem(name string, archive string, path string, err error) Item {
 	return Item{
-		name,
-		archive,
-		path,
-		NewStatus(err),
+		Name: name,
+		Archive: archive,
+		Path: path,
+		Status: NewStatus(err),
 	}
 }
 
@@ -93,8 +94,8 @@ func GetItemsResponse(items []Item) string {
 	return str
 }
 
-func GetHomeResponse(a []Archive) string {
-	res := HomeResponse{
+func GetRootResponse(a []Archive) string {
+	res := RootResponse{
 		NewStatus(nil),
 		a,
 	}

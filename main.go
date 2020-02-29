@@ -36,7 +36,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response = GetStatusResponse(err)
 	} else {
-		response = GetHomeResponse(archives)
+		response = GetRootResponse(archives)
 	}
 	fmt.Fprintln(w, response)
 }
@@ -109,16 +109,16 @@ write_response:
 	fmt.Fprintln(w, response)
 }
 
-// TODO: complete this.
+// TODO: refactor this.
 func getHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var comp string
-	var fnames string
 	var archive string
 	var response string
 	var archpath string
+	var archfile string
 	var cachepath string
-	var format Format
+	var cmp Compression
 
 	archive, err = getQuery("archive", r.URL.RawQuery)
 	if err != nil {
@@ -126,7 +126,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		response = GetStatusResponse(err)
 		goto write_response
 	}
-	
+
 	cachepath = filepath.Join(cfg.Path, ".cache")
 	if !exists(cachepath) {
 		if err = os.MkdirAll(cachepath, 0755); err != nil {
@@ -141,18 +141,33 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		comp = cfg.Compression
 	}
 
-
-
 	archpath = filepath.Join(cfg.Path, archive)
+	if !exists(archpath) {
+		err = fmt.Errorf("%s: archive not found")
+		log.Println(err)
+		response = GetStatusResponse(err)
+		goto write_response
+	}
 
+	cmp = NewCompression(comp)
+	archfile = cmp.GetFilename(archive)
+	cachepath = filepath.Join(cachepath, archfile)
+	err = cmp.Compress(archpath, cachepath)
+	if err != nil {
+		log.Println(err)
+		response = GetStatusResponse(err)
+		goto write_response
+	}
 
-
-	cachepath = filepath.Join(cachepath, )
-	err = compress()
-
-
-
-
+	http.ServeFile(w, r, cachepath)
+	response = GetItemsResponse([]Item{
+		Item{
+			Name: archfile,
+			Archive: archive,
+			Hash: checksum(cachepath),
+			Status: NewStatus(nil),
+		},
+	})
 
 write_response:
 	fmt.Fprintln(w, response)

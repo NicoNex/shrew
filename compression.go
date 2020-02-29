@@ -1,15 +1,18 @@
 package main
 
-import "github.com/mholt/archiver/v3"
+import (
+	"strings"
 
-type archiver interface {
+	"github.com/mholt/archiver/v3"
+)
+
+type archCreator interface {
 	Archive(src []string, dest string) error
-	Unarchive(src, dest string) error
 }
 
 type Compression struct {
 	ext string
-	arc archiver
+	arc archCreator
 }
 
 func extract(src string, dest string) error {
