@@ -1,4 +1,4 @@
-# shrew
+# Shrew [![Language](https://img.shields.io/badge/Language-Go-blue.svg)](https://golang.org/) [![Go Report Card](https://goreportcard.com/badge/github.com/NicoNex/shrew)](https://goreportcard.com/report/github.com/NicoNex/shrew) [![License](https://img.shields.io/badge/license-GPL3-green.svg?style=flat)](https://github.com/NicoNex/shrew/blob/master/LICENSE)
 A little shrew that stores backups and makes them accessible in a web page.
 
 
